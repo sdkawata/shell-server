@@ -9,6 +9,7 @@ package main
 import "C"
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,13 @@ import (
 
 	"golang.org/x/net/websocket"
 )
+
+type Output struct {
+	Text string `json:"text"`
+}
+type Input struct {
+	Text string `json:"text"`
+}
 
 func wsHandler(ws *websocket.Conn) {
 	defer ws.Close()
@@ -41,6 +49,7 @@ func wsHandler(ws *websocket.Conn) {
 	exited := make(chan struct{})
 	go func() {
 		defer close(exited)
+		encoder := json.NewEncoder(ws)
 		buf := make([]byte, 1000)
 		for {
 			n, err := file.Read(buf)
@@ -51,14 +60,15 @@ func wsHandler(ws *websocket.Conn) {
 			if err != nil {
 				panic(err)
 			}
-			ws.Write(buf[0:n])
+			encoder.Encode(&Output{Text: (string)(buf[0:n])})
 		}
 	}()
 	go func() {
 		defer close(exited)
-		buf := make([]byte, 1000)
+		decoder := json.NewDecoder(ws)
+		input := Input{}
 		for {
-			n, err := ws.Read(buf)
+			err := decoder.Decode(&input)
 			if err == io.EOF {
 				fmt.Printf("ws EOF reached\n")
 				return
@@ -66,7 +76,9 @@ func wsHandler(ws *websocket.Conn) {
 			if err != nil {
 				panic(err)
 			}
-			file.Write(buf[0:n])
+			if input.Text != "" {
+				file.Write([]byte(input.Text))
+			}
 		}
 	}()
 	<-exited

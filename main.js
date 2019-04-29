@@ -1,6 +1,7 @@
 let keymap = {}
 keymap[13] = "\n"
 keymap[9] = "\t"
+keymap[8] = "\b"
 
 let ws = new WebSocket('ws://localhost:12345/ws')
 
@@ -12,14 +13,16 @@ ws.onopen = () => {
         if (key.length > 1) {
             return;
         }
-        ws.send(key)
+        ws.send(JSON.stringify({text:key}))
     })
 }
 
 ws.onmessage = (e) => {
-    console.log(JSON.stringify(e.data))
-    let elem = document.getElementById('main')
-    let text = e.data.replace(/\r\n/g, '<br>')
-    main.innerHTML = main.innerHTML + text
-    document.scrollingElement.scrollTop=999999999999999
+    let data = JSON.parse(e.data)
+    if (data.text) {
+        let elem = document.getElementById('main')
+        let text = data.text.replace(/\r\n/g, '<br>')
+        main.innerHTML = main.innerHTML + text
+        document.scrollingElement.scrollTop=999999999999999
+    }
 }
