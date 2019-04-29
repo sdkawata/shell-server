@@ -1,0 +1,14 @@
+{
+  "name": "shell-server",
+  "dependencies": {
+    "ts-loader": "^5.4.5",
+    "typescript": "^3.4.5",
+    "webpack": "^4.30.0"
+  },
+  "scripts": {
+    "watch": "webpack --watch"
+  },
+  "devDependencies": {
+    "webpack-cli": "^3.3.1"
+  }
+}

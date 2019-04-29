@@ -1,2 +1,5 @@
 shell-server
+main.js
 vendor/
+node_modules/
+.vscode/
