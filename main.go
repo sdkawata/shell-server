@@ -21,12 +21,15 @@ import (
 )
 
 func wsHandler(ws *websocket.Conn) {
+	defer ws.Close()
 	fmt.Printf("ws connected\n")
 	var amaster C.int
 	var aslave C.int
 	if errno := C.openpty((*C.int)(unsafe.Pointer(&amaster)), (*C.int)(unsafe.Pointer(&aslave)), nil, nil, nil); errno != 0 {
 		panic(fmt.Sprintf("errorno: %d\n", errno))
 	}
+	file := os.NewFile(uintptr(amaster), "ptymaster")
+	defer file.Close()
 	attr := syscall.ProcAttr{Files: []uintptr{uintptr(aslave), uintptr(aslave), uintptr(aslave)}}
 	pid, err := syscall.ForkExec("/usr/bin/bash", []string{}, &attr)
 	if err != nil {
@@ -34,20 +37,39 @@ func wsHandler(ws *websocket.Conn) {
 	}
 	fmt.Printf("pid:%d\n", pid)
 	cmd := exec.Command("bash")
-	file := os.NewFile(uintptr(amaster), "ptymaster")
 	cmd.Start()
-	buf := make([]byte, 1000)
-	for {
-		n, err := file.Read(buf)
-		if err == io.EOF {
-			fmt.Printf("EOF reached\n")
-			return
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		buf := make([]byte, 1000)
+		for {
+			n, err := file.Read(buf)
+			if err == io.EOF {
+				fmt.Printf("file EOF reached\n")
+				return
+			}
+			if err != nil {
+				panic(err)
+			}
+			ws.Write(buf[0:n])
 		}
-		if err != nil {
-			panic(err)
+	}()
+	go func() {
+		defer close(exited)
+		buf := make([]byte, 1000)
+		for {
+			n, err := ws.Read(buf)
+			if err == io.EOF {
+				fmt.Printf("ws EOF reached\n")
+				return
+			}
+			if err != nil {
+				panic(err)
+			}
+			file.Write(buf[0:n])
 		}
-		ws.Write(buf[0:n])
-	}
+	}()
+	<-exited
 }
 
 func main() {
