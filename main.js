@@ -17,8 +17,9 @@ ws.onopen = () => {
 }
 
 ws.onmessage = (e) => {
-    console.log(e.data)
+    console.log(JSON.stringify(e.data))
     let elem = document.getElementById('main')
-    let text = e.data.replace("\n", '<br>')
+    let text = e.data.replace(/\r\n/g, '<br>')
     main.innerHTML = main.innerHTML + text
+    document.scrollingElement.scrollTop=999999999999999
 }
