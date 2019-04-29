@@ -44,7 +44,12 @@ func wsHandler(ws *websocket.Conn) {
 	}
 	file := os.NewFile(uintptr(amaster), "ptymaster")
 	defer file.Close()
-	attr := syscall.ProcAttr{Files: []uintptr{uintptr(aslave), uintptr(aslave), uintptr(aslave)}}
+	sysattr := syscall.SysProcAttr{Setsid: true}
+	attr := syscall.ProcAttr{
+		Files: []uintptr{uintptr(aslave), uintptr(aslave), uintptr(aslave)},
+		Env:   []string{"TERM=xterm"},
+		Sys:   &sysattr,
+	}
 	pid, err := syscall.ForkExec("/usr/bin/bash", []string{}, &attr)
 	if err != nil {
 		panic(err)
