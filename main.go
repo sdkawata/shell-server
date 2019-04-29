@@ -3,8 +3,12 @@ package main
 // #cgo LDFLAGS: -lutil
 /*
 #include <pty.h>
-#include <stdio.h>
 #include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+int setwinsize(int fd, struct winsize *argp) {
+	return ioctl(fd, TIOCSWINSZ, argp);
+}
 */
 import "C"
 
@@ -25,7 +29,9 @@ type Output struct {
 	Text string `json:"text"`
 }
 type Input struct {
-	Text string `json:"text"`
+	Text   string `json:"text"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
 }
 
 func wsHandler(ws *websocket.Conn) {
@@ -78,6 +84,11 @@ func wsHandler(ws *websocket.Conn) {
 			}
 			if input.Text != "" {
 				file.Write([]byte(input.Text))
+			} else if input.Width != 0 && input.Height != 0 {
+				winsize := C.struct_winsize{ws_row: C.ushort(input.Width), ws_col: C.ushort(input.Height)}
+				if errno := C.setwinsize(C.int(aslave), (*C.struct_winsize)(unsafe.Pointer(&winsize))); errno != 0 {
+					panic(fmt.Sprintf("ioctl error errno:%d", errno))
+				}
 			}
 		}
 	}()

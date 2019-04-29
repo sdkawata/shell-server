@@ -5,8 +5,16 @@ keymap[8] = "\b"
 
 let ws = new WebSocket('ws://localhost:12345/ws')
 
+function sendCurrentWinsize() {
+    ws.send(JSON.stringify({
+        height: Math.floor(window.innerHeight / 16),
+        width: Math.floor(window.innerWidth / 16),
+    }))
+}
+
 ws.onopen = () => {
     console.log('connected')
+    sendCurrentWinsize()
     document.body.addEventListener('keydown', e => {
         console.log(e)
         let key = keymap[e.keyCode] || e.key
