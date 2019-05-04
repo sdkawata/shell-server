@@ -10,6 +10,10 @@ let keymap: Keymap= {
     13: "\n",
     9 : "\t",
     8: "\b",
+    38: "\x1b[A",
+    40: "\x1b[B",
+    37: "\x1b[C",
+    39: "\x1b[D",
 }
 
 type Style = {
@@ -57,8 +61,8 @@ class Parser {
 }
 
 class Shell {
-    ptrcol=0;
-    ptrrow=0;
+    curcol=0;
+    currow=0;
     rows: Char[][] = [];
     insyscommand = false;
     title = '';
@@ -72,6 +76,21 @@ class Shell {
         5: 'magenta',
         6: 'cyan',
         7: 'white',
+    }
+    escapeHTML(str: string) {
+        return str.replace(/[&'`"<> \t]/g, function(match: string) {
+            let map: {[key:string]: string} = {
+                '&': '&amp;',
+                "'": '&#x27;',
+                '`': '&#x60;',
+                '"': '&quot;',
+                '<': '&lt;',
+                '>': '&gt;',
+                ' ': '&nbsp;',
+                "\t": '&nbsp;&nbsp;&nbsp;&nbsp;',
+            }
+            return map[match]
+          });
     }
     render(elem: HTMLElement) {
         let html = ""
@@ -89,10 +108,11 @@ class Shell {
                 let cssString = Object.entries(css).map(([key,value]) => {
                     return `${key as string}:${value as string}`
                 }).join(';')
+                let text = this.escapeHTML(char.text)
                 if (cssString != "") {
-                    html += `<span style="${cssString}">${char.text}</span>`
+                    html += `<span style="${cssString}">${text}</span>`
                 } else {
-                    html+= char.text
+                    html+= text
                 }
             })
             html += "</div>"
@@ -104,7 +124,7 @@ class Shell {
         let parser = new Parser(text)
         while (true) {
             let current = parser.next()
-            //console.log(JSON.stringify(current), ptrcol, ptrrow, currentStyle)
+            //console.log(JSON.stringify(current), this.currow, this.curcol, this.currentStyle)
             if (current === undefined) {
                 break;
             } else if (current === "\u001b") {
@@ -126,11 +146,35 @@ class Shell {
                                 // reset
                                 this.currentStyle = {}
                             } else {
-                                console.log("== unrecognizable escape sequence ==")
+                                console.log("== unrecognizable escape sequence ==", param, intermediate, final)
                             }
                         });
+                    } else if (final === 'K') {
+                        if (param === '') {
+                            // erase end of line
+                            if (this.rows[this.currow] !== undefined) {
+                                this.rows[this.currow].splice(this.curcol, this.rows[this.currow].length);
+                            }
+                        } else {
+                            console.log("== unrecognizable escape sequence ==", param, intermediate, final)
+                        }
+                    } else if (final === 'H') {
+                        // cursor home
+                        if (param === '') {
+                            this.curcol = 0;
+                            this.currow = 0;
+                        } else {
+                            let [row, col] = param.split(';');
+                            this.currow = Number(row);
+                            this.curcol = Number(col);
+                        }
+                    } else if (final === 'J') {
+                        this.rows.splice(this.currow, this.rows.length);
+                    } else if (final === 'C') {
+                        let count = param === '' ? 1 : Number(param);
+                        this.curcol+=count
                     } else {
-                        console.log("== unrecognizable escape sequence ==")
+                        console.log("== unrecognizable escape sequence ==", param, intermediate, final)
                     }
                 } else {
                     console.log("== unrecognizable escape sequence ==")
@@ -138,24 +182,29 @@ class Shell {
             } else if (current === "\u0007") {
                 this.insyscommand = false;
             } else if (current === "\r") {
-                this.ptrrow = 0;
+                this.curcol = 0;
             } else if (current === "\n") {
-                this.ptrcol++;
+                this.currow++;
+            } else if (current === "\b") {
+                this.curcol--;
+                this.rows[this.currow].splice(this.curcol, 1);
+            } else if (current === "\u0000") {
+                // skip
             } else {
                 if (this.insyscommand) {
                     continue;
                 }
-                this.rows[this.ptrcol] = this.rows[this.ptrcol] || [];
+                this.rows[this.currow] = this.rows[this.currow] || [];
                 let char: Char = Object.assign({text:current}, this.currentStyle)
-                if (this.ptrrow == (this.rows[this.ptrcol].length)) {
-                    this.rows[this.ptrcol].push(char);
+                if (this.curcol == (this.rows[this.currow].length)) {
+                    this.rows[this.currow].push(char);
                 } else {
-                    while(this.ptrrow > this.rows[this.ptrcol].length) {
-                        this.rows[this.ptrcol].push({text: ' '});
+                    while(this.curcol > this.rows[this.currow].length) {
+                        this.rows[this.currow].push({text: ' '});
                     }
-                    this.rows[this.ptrcol][this.ptrrow] = char;
+                    this.rows[this.currow][this.curcol] = char;
                 }
-                this.ptrrow++;
+                this.curcol++;
             }
         }
     }
@@ -166,7 +215,7 @@ let shell = new Shell()
 
 function sendCurrentWinsize() {
     ws.send(JSON.stringify({
-        height: Math.floor(window.innerHeight / 16),
+        height: Math.floor(window.innerHeight / 16 / 1.5),
         width: Math.floor(window.innerWidth / 16),
     }))
 }
@@ -177,7 +226,7 @@ ws.onopen = () => {
     document.body.addEventListener('keydown', e => {
         console.log(e)
         let key = keymap[e.keyCode] || e.key
-        if (key.length > 1) {
+        if (key.length > 1 && keymap[e.keyCode] === undefined) {
             return;
         }
         ws.send(JSON.stringify({text:key}))

@@ -47,7 +47,7 @@ func wsHandler(ws *websocket.Conn) {
 	sysattr := syscall.SysProcAttr{Setsid: true}
 	attr := syscall.ProcAttr{
 		Files: []uintptr{uintptr(aslave), uintptr(aslave), uintptr(aslave)},
-		Env:   []string{"TERM=xterm"},
+		Env:   []string{"TERM=vt100"},
 		Sys:   &sysattr,
 	}
 	pid, err := syscall.ForkExec("/usr/bin/bash", []string{}, &attr)
@@ -90,7 +90,7 @@ func wsHandler(ws *websocket.Conn) {
 			if input.Text != "" {
 				file.Write([]byte(input.Text))
 			} else if input.Width != 0 && input.Height != 0 {
-				winsize := C.struct_winsize{ws_row: C.ushort(input.Width), ws_col: C.ushort(input.Height)}
+				winsize := C.struct_winsize{ws_row: C.ushort(input.Height), ws_col: C.ushort(input.Width)}
 				if errno := C.setwinsize(C.int(aslave), (*C.struct_winsize)(unsafe.Pointer(&winsize))); errno != 0 {
 					panic(fmt.Sprintf("ioctl error errno:%d", errno))
 				}
