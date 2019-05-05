@@ -137,7 +137,7 @@ class Shell {
             if (rowidx === this.currow && line.length <= this.curcol) {
                 html+=`<span style="${this.createCssString(cursorcss)}">&nbsp;</span>`
             }
-            html += "</div>"
+            html += "&nbsp;</div>"
         })
         elem.innerHTML = html
     }
@@ -227,6 +227,7 @@ class Shell {
             } else if (current === "\n") {
                 this.currow++;
                 this.scrollRows();
+                this.fillRows();
             } else if (current === "\b") {
                 this.curcol--;
                 // this.rows[this.currow].splice(this.curcol, 1);
