@@ -24,6 +24,7 @@ type Style = {
 type Char = Style & {text: string}
 
 
+
 class Parser {
     str: string;
     ptr: number = 0;
@@ -78,6 +79,13 @@ class Shell {
         6: 'cyan',
         7: 'white',
     }
+    width: number;
+    height: number;
+    constructor(width:number, height:number) {
+        this.width = width;
+        this.height = height;
+        console.log(`width=${width} height=${height}`)
+    }
     escapeHTML(str: string) {
         return str.replace(/[&'`"<> \t]/g, function(match: string) {
             let map: {[key:string]: string} = {
@@ -87,8 +95,8 @@ class Shell {
                 '"': '&quot;',
                 '<': '&lt;',
                 '>': '&gt;',
-                ' ': '&nbsp;',
-                "\t": '&nbsp;&nbsp;&nbsp;&nbsp;',
+                ' ': '&ensp;',
+                "\t": '&ensp;&ensp;&ensp;&ensp;',
             }
             return map[match]
           });
@@ -99,6 +107,7 @@ class Shell {
         }).join(';');
     }
     render(elem: HTMLElement) {
+        //console.log(this.rows)
         let html = ""
         let cursorcss: {[key: string]:string} = {
             'animation': '1s linear infinite cursor'
@@ -131,6 +140,23 @@ class Shell {
             html += "</div>"
         })
         elem.innerHTML = html
+    }
+    fillRows() {
+        // colrow, colcolの位置まで埋める
+        for(let i=0; i<=this.currow;i++) {
+            this.rows[i] = this.rows[i] || [];
+        }
+        for(let i=0;i<=this.curcol;i++) {
+            this.rows[this.currow][i] = this.rows[this.currow][i] || {text: ' '}
+        }
+    }
+    scrollRows() {
+        // heightより上の行を削除
+        if (this.currow >= this.height - 1) {
+            let del = this.currow - (this.height - 1);
+            this.rows.splice(0, del);
+            this.currow -= del;
+        }
     }
     addText(text:string) {
         console.log(JSON.stringify(text))
@@ -178,14 +204,16 @@ class Shell {
                             this.currow = 0;
                         } else {
                             let [row, col] = param.split(';');
-                            this.currow = Number(row);
-                            this.curcol = Number(col);
+                            this.currow = Number(row) - 1;
+                            this.curcol = Number(col) - 1;
+                            this.fillRows();
                         }
                     } else if (final === 'J') {
                         this.rows.splice(this.currow, this.rows.length);
                     } else if (final === 'C') {
                         let count = param === '' ? 1 : Number(param);
                         this.curcol+=count
+                        this.fillRows();
                     } else {
                         console.log("== unrecognizable escape sequence ==", param, intermediate, final)
                     }
@@ -198,6 +226,7 @@ class Shell {
                 this.curcol = 0;
             } else if (current === "\n") {
                 this.currow++;
+                this.scrollRows();
             } else if (current === "\b") {
                 this.curcol--;
                 // this.rows[this.currow].splice(this.curcol, 1);
@@ -218,18 +247,25 @@ class Shell {
                     this.rows[this.currow][this.curcol] = char;
                 }
                 this.curcol++;
+                if (this.curcol >= this.width) {
+                    this.curcol = 0;
+                    this.currow++;
+                    this.fillRows();
+                }
             }
         }
     }
 }
 
 let ws = new WebSocket('ws://localhost:12345/ws')
-let shell = new Shell()
+let width = Math.floor(window.innerWidth / 16 * 2);
+let height = Math.floor(window.innerHeight / 16 / 1.5);
+let shell = new Shell(width, height)
 
 function sendCurrentWinsize() {
     ws.send(JSON.stringify({
-        height: Math.floor(window.innerHeight / 16 / 1.5),
-        width: Math.floor(window.innerWidth / 16),
+        height,
+        width 
     }))
 }
 
