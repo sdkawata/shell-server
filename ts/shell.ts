@@ -1,4 +1,5 @@
 import {Parser} from './parser';
+import { KeyMapper } from './keymaper';
 
 type Style = {
     color?: string,
@@ -31,9 +32,11 @@ export class Shell {
     width: number;
     height: number;
     parser = new Parser()
-    constructor(width:number, height:number) {
+    keyMapper: KeyMapper
+    constructor(width:number, height:number, keyMapper: KeyMapper) {
         this.width = width;
         this.height = height;
+        this.keyMapper = keyMapper
         console.log(`width=${width} height=${height}`)
     }
     escapeHTML(str: string) {
@@ -173,6 +176,10 @@ export class Shell {
                         let count = param === '' ? 1 : Number(param);
                         this.curcol+=count
                         this.fillRows();
+                    } else if (final === 'h' && param === '?1') {
+                        this.keyMapper.enableApplicationCursorKeysMode()
+                    } else if (final === 'l' && param === '?1') {
+                        this.keyMapper.disableApplicateCursorKeysMode()
                     } else {
                         console.log("== unrecognizable escape sequence ==", param, intermediate, final)
                     }
