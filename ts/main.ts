@@ -12,8 +12,9 @@ let keymap: Keymap= {
     8: "\b",
     38: "\x1b[A",
     40: "\x1b[B",
-    37: "\x1b[C",
-    39: "\x1b[D",
+    37: "\x1b[D",  // <-
+    39: "\x1b[C",  // ->
+    27: "\x1b",
 }
 
 type Style = {
@@ -92,12 +93,20 @@ class Shell {
             return map[match]
           });
     }
+    createCssString(css:{[key: string]:string}) {
+        return Object.entries(css).map(([key,value]) => {
+            return `${key as string}:${value as string}`
+        }).join(';');
+    }
     render(elem: HTMLElement) {
         let html = ""
-        this.rows.forEach((line, idx) => {
+        let cursorcss: {[key: string]:string} = {
+            'animation': '1s linear infinite cursor'
+        }
+        this.rows.forEach((line, rowidx) => {
             //console.log(line)
             html += "<div>"
-            line.forEach((char) => {
+            line.forEach((char, colidx) => {
                 let css: {[key: string]:string} = {};
                 if (char.color) {
                     css['color'] = char.color;
@@ -105,9 +114,10 @@ class Shell {
                 if (char.backColor) {
                     css['background-color'] = char.backColor
                 }
-                let cssString = Object.entries(css).map(([key,value]) => {
-                    return `${key as string}:${value as string}`
-                }).join(';')
+                if (rowidx === this.currow && colidx === this.curcol) {
+                    css = cursorcss;
+                }
+                let cssString = this.createCssString(css)
                 let text = this.escapeHTML(char.text)
                 if (cssString != "") {
                     html += `<span style="${cssString}">${text}</span>`
@@ -115,6 +125,9 @@ class Shell {
                     html+= text
                 }
             })
+            if (rowidx === this.currow && line.length <= this.curcol) {
+                html+=`<span style="${this.createCssString(cursorcss)}">&nbsp;</span>`
+            }
             html += "</div>"
         })
         elem.innerHTML = html
@@ -187,7 +200,7 @@ class Shell {
                 this.currow++;
             } else if (current === "\b") {
                 this.curcol--;
-                this.rows[this.currow].splice(this.curcol, 1);
+                // this.rows[this.currow].splice(this.curcol, 1);
             } else if (current === "\u0000") {
                 // skip
             } else {
