@@ -40,7 +40,7 @@ export class Shell {
         this.height = height;
         this.keyMapper = keyMapper
         this.scrollBegin = 0;
-        this.scrollEnd = width - 1;
+        this.scrollEnd = height - 1;
         console.log(`width=${width} height=${height}`)
     }
     escapeHTML(str: string) {
@@ -105,6 +105,15 @@ export class Shell {
         }
         for(let i=0;i<=this.curcol;i++) {
             this.rows[this.currow][i] = this.rows[this.currow][i] || {text: ' '}
+        }
+    }
+    scroll() {
+        if (this.currow === this.scrollEnd) {
+            // scroll
+            this.rows.splice(this.scrollBegin, 1);
+            this.rows.splice(this.scrollEnd, 0, []);
+        } else {
+            this.currow++;
         }
     }
     addText(text:string) {
@@ -198,14 +207,7 @@ export class Shell {
             } else if (current === "\r") {
                 this.curcol = 0;
             } else if (current === "\n") {
-                if (this.currow === this.scrollEnd) {
-                    // scroll
-                    this.rows.splice(this.scrollBegin, 1);
-                    this.rows.splice(this.scrollEnd, 0, [])
-                } else {
-                    this.currow++;
-                }
-
+                this.scroll()
                 this.fillRows();
             } else if (current === "\b") {
                 this.curcol--;
@@ -228,8 +230,8 @@ export class Shell {
                 }
                 this.curcol++;
                 if (this.curcol >= this.width) {
+                    this.scroll()
                     this.curcol = 0;
-                    this.currow++;
                     this.fillRows();
                 }
             }
