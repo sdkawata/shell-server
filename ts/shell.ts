@@ -18,6 +18,8 @@ export class Shell {
     rows: Char[][] = [];
     insyscommand = false;
     title = '';
+    scrollBegin = 0;
+    scrollEnd = 0;
     currentStyle: Style = {}
     colorList: ColorList= {
         0: 'black',
@@ -37,6 +39,8 @@ export class Shell {
         this.width = width;
         this.height = height;
         this.keyMapper = keyMapper
+        this.scrollBegin = 0;
+        this.scrollEnd = width - 1;
         console.log(`width=${width} height=${height}`)
     }
     escapeHTML(str: string) {
@@ -103,14 +107,6 @@ export class Shell {
             this.rows[this.currow][i] = this.rows[this.currow][i] || {text: ' '}
         }
     }
-    scrollRows() {
-        // heightより上の行を削除
-        if (this.currow >= this.height - 1) {
-            let del = this.currow - (this.height - 1);
-            this.rows.splice(0, del);
-            this.currow -= del;
-        }
-    }
     addText(text:string) {
         console.log(JSON.stringify(text))
         this.parser.addText(text)
@@ -125,6 +121,11 @@ export class Shell {
                 if (next === "]") {
                     console.log('insys')
                     this.insyscommand = true;
+                } else if (next === 'M') {
+                    this.rows.unshift([])
+                    if (this.rows.length > this.height) {
+                        this.rows.splice(this.height, this.rows.length);
+                    }
                 } else if (next === "[") {
                     let csiparam = this.parser.getCSIparam();
                     if (csiparam === undefined) {
@@ -180,19 +181,31 @@ export class Shell {
                         this.keyMapper.enableApplicationCursorKeysMode()
                     } else if (final === 'l' && param === '?1') {
                         this.keyMapper.disableApplicateCursorKeysMode()
+                    } else if (final === 'r') {
+                        let [b, e] = param.split(';')
+                        this.scrollBegin = Number(b) - 1
+                        this.scrollEnd = Number(e) - 1;
+                        this.curcol = 0;
+                        this.currow = 0;
                     } else {
                         console.log("== unrecognizable escape sequence ==", param, intermediate, final)
                     }
                 } else {
-                    console.log("== unrecognizable escape sequence ==")
+                    console.log("=== unrecognizable escape sequence ===", next)
                 }
             } else if (current === "\u0007") {
                 this.insyscommand = false;
             } else if (current === "\r") {
                 this.curcol = 0;
             } else if (current === "\n") {
-                this.currow++;
-                this.scrollRows();
+                if (this.currow === this.scrollEnd) {
+                    // scroll
+                    this.rows.splice(this.scrollBegin, 1);
+                    this.rows.splice(this.scrollEnd, 0, [])
+                } else {
+                    this.currow++;
+                }
+
                 this.fillRows();
             } else if (current === "\b") {
                 this.curcol--;
