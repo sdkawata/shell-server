@@ -54,12 +54,14 @@ func wsHandler(ws *websocket.Conn) {
 	if err != nil {
 		panic(err)
 	}
+	defer syscall.Kill(-pid, syscall.SIGTERM)
 	fmt.Printf("pid:%d\n", pid)
 	cmd := exec.Command("bash")
 	cmd.Start()
-	exited := make(chan struct{})
+	shExited := make(chan struct{})
+	wsExited := make(chan struct{})
 	go func() {
-		defer close(exited)
+		defer close(shExited)
 		encoder := json.NewEncoder(ws)
 		buf := make([]byte, 1000)
 		for {
@@ -69,13 +71,14 @@ func wsHandler(ws *websocket.Conn) {
 				return
 			}
 			if err != nil {
-				panic(err)
+				fmt.Printf("write error:%v\n", err)
+				return
 			}
 			encoder.Encode(&Output{Text: (string)(buf[0:n])})
 		}
 	}()
 	go func() {
-		defer close(exited)
+		defer close(wsExited)
 		decoder := json.NewDecoder(ws)
 		input := Input{}
 		for {
@@ -85,7 +88,7 @@ func wsHandler(ws *websocket.Conn) {
 				return
 			}
 			if err != nil {
-				panic(err)
+				fmt.Printf("read error:%v\n", err)
 			}
 			if input.Text != "" {
 				file.Write([]byte(input.Text))
@@ -97,7 +100,10 @@ func wsHandler(ws *websocket.Conn) {
 			}
 		}
 	}()
-	<-exited
+	select {
+	case <-wsExited:
+	case <-shExited:
+	}
 }
 
 func main() {
