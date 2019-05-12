@@ -30,6 +30,16 @@ export class KeyMapper{
         });
     }
     keyDowned(e:any, f: (s:string) => void) {
+        if (e.ctrlKey && e.keyCode >=65 && e.keyCode <= 90) {
+            // ctrl key
+            f(String.fromCharCode(e.keyCode - 65 + 1));
+            return;
+        }
+        if (e.altKey && e.keyCode >=65 && e.keyCode <= 90) {
+            // ctrl key
+            f("\x1b" + String.fromCharCode(e.keyCode - 65 + 0x61));
+            return;
+        }
         let key = this.keymap[e.keyCode] || e.key
         if (key.length > 1 && this.keymap[e.keyCode] === undefined) {
             return;
