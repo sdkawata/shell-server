@@ -1,7 +1,7 @@
 import {Shell} from './shell';
 import { KeyMapper } from './keymaper';
 
-let ws = new WebSocket('ws://localhost:12345/ws')
+let ws = new WebSocket('ws://' + window.location.host + '/ws')
 let width = Math.floor(window.innerWidth / 16 * 2);
 let height = Math.floor(window.innerHeight / 16 / 1.5);
 let keyMapper = new KeyMapper()
