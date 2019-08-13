@@ -1,7 +1,7 @@
 import {Shell} from './shell';
 import { KeyMapper } from './keymaper';
 
-let ws = new WebSocket('ws://' + window.location.host + '/ws')
+let ws:WebSocket 
 let width = Math.floor(window.innerWidth / 16 * 2);
 let height = Math.floor(window.innerHeight / 16 / 1.5);
 let keyMapper = new KeyMapper()
@@ -14,8 +14,30 @@ function sendCurrentWinsize() {
     }))
 }
 
-ws.onopen = () => {
-    console.log('connected')
+function startConn(pass: string) {
+    ws = new WebSocket('ws://' + window.location.host + '/ws')
+    ws.onopen = () => {
+        console.log('connected')
+        ws.send(JSON.stringify({password:pass}))
+    }
+    
+    ws.onmessage = (e) => {
+        let data = JSON.parse(e.data)
+        if (data.auth === true) {
+            initShell()
+        }
+        if (data.text) {
+            shell.addText(data.text)
+            shell.render(document!.getElementById('main')!)
+            document!.scrollingElement!.scrollTop=999999999999999
+        }
+    }
+    
+}
+
+function initShell() {
+    document.getElementById('initial')!.style.display='none'
+    document.getElementById('main')!.style.display='block'
     sendCurrentWinsize()
     document.body.addEventListener('keydown', e => {
         console.log(e)
@@ -24,11 +46,6 @@ ws.onopen = () => {
     })
 }
 
-ws.onmessage = (e) => {
-    let data = JSON.parse(e.data)
-    if (data.text) {
-        shell.addText(data.text)
-        shell.render(document!.getElementById('main')!)
-        document!.scrollingElement!.scrollTop=999999999999999
-    }
-}
+document.getElementById('sendpass')!.addEventListener('click', ()=> {
+    startConn((document.getElementById('password') as HTMLInputElement).value);
+})
