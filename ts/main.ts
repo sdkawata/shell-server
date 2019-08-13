@@ -24,7 +24,11 @@ function startConn(pass: string) {
     ws.onmessage = (e) => {
         let data = JSON.parse(e.data)
         if (data.auth === true) {
+            localStorage.setItem('shell_password', pass)
             initShell()
+        }
+        if (data.auth === false) {
+            ws.close()
         }
         if (data.text) {
             shell.addText(data.text)
@@ -49,3 +53,8 @@ function initShell() {
 document.getElementById('sendpass')!.addEventListener('click', ()=> {
     startConn((document.getElementById('password') as HTMLInputElement).value);
 })
+
+let lastPass = localStorage.getItem('shell_password')
+if (lastPass) {
+    startConn(lastPass)
+}
